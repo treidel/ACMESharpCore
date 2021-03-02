@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <!--
@@ -24,12 +24,6 @@
   </PropertyGroup>
 
   <Import Project="../../version.props" />
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.0.2" />
-    <PackageReference Include="System.ComponentModel.Annotations" Version="4.5.0" />
-    <PackageReference Include="Newtonsoft.json" Version="11.0.2" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ACMESharp\ACMESharp.csproj" />
