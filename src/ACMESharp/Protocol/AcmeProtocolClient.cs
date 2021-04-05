@@ -834,7 +834,7 @@ namespace ACMESharp.Protocol
             if (Constants.ProblemContentTypeHeaderValue.Equals(resp.Content?.Headers?.ContentType))
             {
                 problem = await Deserialize<Problem>(resp);
-                msg = problem.Detail;
+                msg = problem?.Detail;
             }
 
             if (string.IsNullOrEmpty(msg))
