@@ -7,15 +7,19 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+
 using ACMESharp.Crypto;
 using ACMESharp.Crypto.JOSE;
 using ACMESharp.Logging;
 using ACMESharp.Protocol.Messages;
 using ACMESharp.Protocol.Resources;
+
 using Microsoft.Extensions.Logging;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
+
 using _Authorization = ACMESharp.Protocol.Resources.Authorization;
 
 namespace ACMESharp.Protocol
@@ -754,47 +758,63 @@ namespace ACMESharp.Protocol
             HttpStatusCode[] expectedStatuses = null,
             bool skipNonce = false, bool skipSigning = false, bool includePublicKey = false,
             CancellationToken cancel = default(CancellationToken),
-            [System.Runtime.CompilerServices.CallerMemberName]string opName = "")
+            [System.Runtime.CompilerServices.CallerMemberName] string opName = "")
         {
             if (method == null)
                 method = HttpMethod.Get;
             if (expectedStatuses == null)
                 expectedStatuses = new[] { HttpStatusCode.OK };
 
-            BeforeAcmeSign?.Invoke(opName, message);
-            var requ = new HttpRequestMessage(method, uri);
-            if (message != null)
+            AcmeProtocolException ex = null;
+
+            for (int i = 0; i < 5; i++)
             {
-                string payload;
-                if (skipSigning)
-                    payload = ResolvePayload(message);
-                else
-                    payload = ComputeAcmeSigned(message, uri.ToString(),
+                BeforeAcmeSign?.Invoke(opName, message);
+                var requ = new HttpRequestMessage(method, uri);
+                if (message != null)
+                {
+                    string payload;
+                    if (skipSigning)
+                        payload = ResolvePayload(message);
+                    else
+                        payload = ComputeAcmeSigned(message, uri.ToString(),
                             includePublicKey: includePublicKey);
-                requ.Content = new StringContent(payload);
-                requ.Content.Headers.ContentType = Constants.JsonContentTypeHeaderValue;
-            }
+                    requ.Content = new StringContent(payload);
+                    requ.Content.Headers.ContentType = Constants.JsonContentTypeHeaderValue;
+                }
 
-            BeforeHttpSend?.Invoke(opName, requ);
-            var resp = await _http.SendAsync(requ);
-            AfterHttpSend?.Invoke(opName, resp);
+                BeforeHttpSend?.Invoke(opName, requ);
+                var resp = await _http.SendAsync(requ, cancel);
+                AfterHttpSend?.Invoke(opName, resp);
 
-            if (expectedStatuses.Length > 0
-                && !expectedStatuses.Contains(resp.StatusCode))
-            {
-                // Since we're about to throw anyway, we process a nonce if it's
-                // there but if not we don't want to overshadow the more immediate
-                // error that we're about to signal with an exception
+                if (expectedStatuses.Length > 0
+                    && !expectedStatuses.Contains(resp.StatusCode))
+                {
+                    // Since we're about to throw anyway, we process a nonce if it's
+                    // there but if not we don't want to overshadow the more immediate
+                    // error that we're about to signal with an exception
+                    if (!skipNonce)
+                        ExtractNextNonce(resp, true);
+
+                    ex = await DecodeResponseErrorAsync(resp, opName: opName);
+
+                    if (ex.ProblemType == ProblemType.RateLimited && ex.ProblemDetail == "Rate limit for '/acme' reached")
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancel);
+
+                        continue;
+                    }
+
+                    throw ex;
+                }
+
                 if (!skipNonce)
-                    ExtractNextNonce(resp, true);
+                    ExtractNextNonce(resp);
 
-                throw await DecodeResponseErrorAsync(resp, opName: opName);
+                return resp;
             }
 
-            if (!skipNonce)
-                ExtractNextNonce(resp);
-
-            return resp;
+            throw ex;
         }
 
         /// <summary>
@@ -809,7 +829,7 @@ namespace ACMESharp.Protocol
             HttpStatusCode[] expectedStatuses = null,
             bool skipNonce = false, bool skipSigning = false, bool includePublicKey = false,
             CancellationToken cancel = default(CancellationToken),
-            [System.Runtime.CompilerServices.CallerMemberName]string opName = "")
+            [System.Runtime.CompilerServices.CallerMemberName] string opName = "")
         {
             return await Deserialize<T>(await SendAcmeAsync(
                     uri, method, message, expectedStatuses,
@@ -825,7 +845,7 @@ namespace ACMESharp.Protocol
 
         async Task<AcmeProtocolException> DecodeResponseErrorAsync(HttpResponseMessage resp,
             string message = null,
-            [System.Runtime.CompilerServices.CallerMemberName]string opName = "")
+            [System.Runtime.CompilerServices.CallerMemberName] string opName = "")
         {
             string msg = null;
             Problem problem = null;
