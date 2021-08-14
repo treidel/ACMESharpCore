@@ -796,6 +796,13 @@ namespace ACMESharp.Protocol
                     if (!skipNonce)
                         ExtractNextNonce(resp, true);
 
+                    if (resp.StatusCode == HttpStatusCode.TooManyRequests)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancel);
+
+                        continue;
+                    }
+
                     ex = await DecodeResponseErrorAsync(resp, opName: opName);
 
                     if (ex.ProblemType == ProblemType.RateLimited && ex.ProblemDetail == "Rate limit for '/acme' reached")
