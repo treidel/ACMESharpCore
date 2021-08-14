@@ -40,6 +40,8 @@ namespace ACMESharp.Protocol
         private HttpClient _http;
         private ILogger _log;
 
+        private readonly Random _random = new Random();
+
         /// <summary>
         /// To implement Let's Encrypt protocol change per RFC 8555,
         /// read announcement here: 
@@ -767,7 +769,7 @@ namespace ACMESharp.Protocol
 
             AcmeProtocolException ex = null;
 
-            for (int i = 0; i < 5; i++)
+            for (int i = 1; i <= 5; i++)
             {
                 BeforeAcmeSign?.Invoke(opName, message);
                 var requ = new HttpRequestMessage(method, uri);
@@ -798,7 +800,7 @@ namespace ACMESharp.Protocol
 
                     if (resp.StatusCode == HttpStatusCode.TooManyRequests)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(1), cancel);
+                        await Task.Delay(ComputeDelayWithJitter(i), cancel);
 
                         continue;
                     }
@@ -807,7 +809,7 @@ namespace ACMESharp.Protocol
 
                     if (ex.ProblemType == ProblemType.RateLimited && ex.ProblemDetail == "Rate limit for '/acme' reached")
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(1), cancel);
+                        await Task.Delay(ComputeDelayWithJitter(i), cancel);
 
                         continue;
                     }
@@ -1024,6 +1026,11 @@ namespace ACMESharp.Protocol
             else
                 payload = JsonConvert.SerializeObject(message, Formatting.None);
             return payload;
+        }
+
+        protected TimeSpan ComputeDelayWithJitter(int count)
+        {
+            return TimeSpan.FromSeconds(Math.Pow(2, count)) + TimeSpan.FromMilliseconds(_random.Next(0, 1000));
         }
 
         #region IDisposable Support
