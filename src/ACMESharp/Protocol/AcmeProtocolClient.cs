@@ -798,16 +798,9 @@ namespace ACMESharp.Protocol
                     if (!skipNonce)
                         ExtractNextNonce(resp, true);
 
-                    if (resp.StatusCode == HttpStatusCode.TooManyRequests)
-                    {
-                        await Task.Delay(ComputeDelayWithJitter(i), cancel);
-
-                        continue;
-                    }
-
                     ex = await DecodeResponseErrorAsync(resp, opName: opName);
 
-                    if (ex.ProblemType == ProblemType.RateLimited && ex.ProblemDetail == "Rate limit for '/acme' reached")
+                    if (resp.StatusCode == HttpStatusCode.TooManyRequests || ex.ProblemType == ProblemType.RateLimited && ex.ProblemDetail == "Rate limit for '/acme' reached")
                     {
                         await Task.Delay(ComputeDelayWithJitter(i), cancel);
 
@@ -1030,7 +1023,7 @@ namespace ACMESharp.Protocol
 
         protected TimeSpan ComputeDelayWithJitter(int count)
         {
-            return TimeSpan.FromSeconds(Math.Pow(2, count)) + TimeSpan.FromMilliseconds(_random.Next(0, 1000));
+            return TimeSpan.FromSeconds(Math.Pow(2, count)) + TimeSpan.FromMilliseconds(_random.Next(0, 10000));
         }
 
         #region IDisposable Support
