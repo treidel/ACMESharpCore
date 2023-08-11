@@ -92,7 +92,15 @@ namespace ACMESharp.Protocol
         private IJwsTool ResolveDefaultSigner()
         {
             // We default to ES256 signer
-            var signer = new Crypto.JOSE.Impl.ESJwsTool();
+            IJwsTool signer;
+            if (Environment.GetEnvironmentVariable("Acmebot:DefaultSigner") == "RSA")
+            {
+                signer = new Crypto.JOSE.Impl.RSJwsTool();
+            }
+            else
+            {
+                signer = new Crypto.JOSE.Impl.ESJwsTool();
+            }
             signer.Init();
             return signer;
         }
