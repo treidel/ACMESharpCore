@@ -781,6 +781,7 @@ namespace ACMESharp.Protocol
             {
                 BeforeAcmeSign?.Invoke(opName, message);
                 var requ = new HttpRequestMessage(method, uri);
+                requ.Headers.TryAddWithoutValidation("Accept", "*/*");
                 if (message != null)
                 {
                     string payload;
