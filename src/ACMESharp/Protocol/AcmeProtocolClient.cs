@@ -699,6 +699,29 @@ namespace ACMESharp.Protocol
         }
 
         /// <summary>
+        /// Creates a new Pre-Authorization for a Certificate which will contain one Identifier.  
+        /// </summary>
+        /// <remarks>
+        /// https://tools.ietf.org/html/draft-ietf-acme-acme-12#section-7.4.1
+        /// </remarks>
+        public async Task<_Authorization> CreatePreAuthorizationAsync(Identifier identifier,
+            CancellationToken cancel = default(CancellationToken))
+        {
+            var message = new CreatePreAuthorizationRequest
+            {
+                Identifier = identifier
+            };
+            var typedResp = await SendAcmeAsync<_Authorization>(
+                    new Uri(_http.BaseAddress, Directory.PreAuthz),
+                    method: HttpMethod.Post,
+                    message: message,
+                    expectedStatuses: new[] { HttpStatusCode.Created },
+                    cancel: cancel);
+
+            return typedResp;
+        }
+
+        /// <summary>
         /// Generic fetch routine to retrieve raw bytes from a URL associated
         /// with an ACME endpoint.
         /// </summary>
@@ -960,6 +983,12 @@ namespace ACMESharp.Protocol
             // }
 
             // return order;
+        }
+
+        protected async Task<Authorization> DecodePreAuthorizationResponseAsync(HttpResponseMessage resp))
+        {
+            var typedResponse = await Deserialize<Authorization>(resp);
+            return order;
         }
 
         protected bool ExtractNextNonce(HttpResponseMessage resp, bool skipThrow = false)
