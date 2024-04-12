@@ -10,8 +10,8 @@ namespace ACMESharp.Protocol.Messages
     /// </summary>
     public class CreatePreAuthorizationRequest
     {
-        [JsonProperty("identifiers", Required = Required.Always)]
-        [Required, MinLength(1)]
-        public Identifier[] Identifiers { get; set; }
+        [JsonProperty("identifier", Required = Required.Always)]
+        [Required]
+        public Identifier Identifier { get; set; }
     }
 }
